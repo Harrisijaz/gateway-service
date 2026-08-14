@@ -1,3 +1,161 @@
 spring:
   application:
     name: gateway-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:localhostredispassword}
+
+server:
+  port: ${GATEWAY_PORT:9094}
+  max-http-request-header-size: 16KB
+
+gateway:
+  allowed-origins:
+    - ${FRONTEND_ORIGIN:http://localhost:3000}
+  jwt:
+    jwks-url: ${GATEWAY_JWKS_URL:http://localhost:9090/auth/.well-known/jwks.json}
+    issuer: ${AUTH_ISSUER:smart-invoice-auth}
+    jwks-ttl: ${GATEWAY_JWKS_TTL:1h}
+    stale-key-grace: ${GATEWAY_JWKS_STALE_GRACE:4h}
+    clock-skew: ${GATEWAY_JWT_CLOCK_SKEW:30s}
+    token-encryption-enabled: ${AUTH_TOKEN_ENCRYPTION_ENABLED:true}
+    jwe-secret: ${AUTH_JWE_SECRET:}
+  rate-limit:
+    global-limit: ${GATEWAY_GLOBAL_RATE_LIMIT:100}
+    global-window: ${GATEWAY_GLOBAL_RATE_WINDOW:1m}
+    overrides:
+      - path: /auth/signup
+        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:5}
+        window: ${GATEWAY_SIGNUP_RATE_WINDOW:15m}
+      - path: /auth/login
+        limit: ${GATEWAY_LOGIN_RATE_LIMIT:5}
+        window: ${GATEWAY_LOGIN_RATE_WINDOW:15m}
+      - path: /user/auth/login
+        limit: ${GATEWAY_LOGIN_RATE_LIMIT:5}
+        window: ${GATEWAY_LOGIN_RATE_WINDOW:15m}
+      - path: /user/auth/signup
+        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:5}
+        window: ${GATEWAY_SIGNUP_RATE_WINDOW:15m}
+      - path: /admin/auth/login
+        limit: ${GATEWAY_ADMIN_LOGIN_RATE_LIMIT:3}
+        window: ${GATEWAY_ADMIN_LOGIN_RATE_WINDOW:30m}
+      - path: /auth/forgot-password
+        limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
+        window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
+      - path: /user/auth/forgot-password
+        limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
+        window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
+  resilience:
+    default-timeout: ${GATEWAY_DEFAULT_TIMEOUT:5s}
+    minimum-calls: ${GATEWAY_CIRCUIT_MIN_CALLS:10}
+    failure-rate-threshold-percent: ${GATEWAY_CIRCUIT_FAILURE_RATE:50}
+    open-state-cooldown: ${GATEWAY_CIRCUIT_COOLDOWN:30s}
+    half-open-trial-calls: ${GATEWAY_CIRCUIT_HALF_OPEN_TRIALS:3}
+  routes:
+    - id: auth-signup
+      service-id: auth-service
+      path: /auth/signup
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      rewrite-to: /user/auth/signup
+      auth-required: false
+    - id: auth-login
+      service-id: auth-service
+      path: /auth/login
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      rewrite-to: /user/auth/login
+      auth-required: false
+    - id: auth-verify-email
+      service-id: auth-service
+      path: /auth/verify-email
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      rewrite-to: /user/auth/verify-email
+      auth-required: false
+    - id: auth-refresh
+      service-id: auth-service
+      path: /auth/refresh
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: auth-logout
+      service-id: auth-service
+      path: /auth/logout
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: true
+      roles: [USER, ADMIN]
+    - id: auth-forgot-password
+      service-id: auth-service
+      path: /auth/forgot-password
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: auth-jwks
+      service-id: auth-service
+      path: /auth/.well-known/jwks.json
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: user-auth-signup
+      service-id: auth-service
+      path: /user/auth/signup
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: user-auth-login
+      service-id: auth-service
+      path: /user/auth/login
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: user-auth-verify-email
+      service-id: auth-service
+      path: /user/auth/verify-email
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: user-auth-resend-verification
+      service-id: auth-service
+      path: /user/auth/resend-verification
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: user-auth-verify-2fa
+      service-id: auth-service
+      path: /user/auth/verify-2fa
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: admin-auth-login
+      service-id: auth-service
+      path: /admin/auth/login
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: admin-auth-verify-2fa
+      service-id: auth-service
+      path: /admin/auth/verify-2fa
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      token-type: login_2fa
+      auth-required: true
+    - id: admin-service
+      service-id: admin-service
+      path: /admin/**
+      uri: ${ADMIN_SERVICE_URL:http://localhost:9091}
+      auth-required: true
+      roles: [ADMIN]
+    - id: invoices
+      service-id: invoice-service
+      path: /invoices/**
+      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: quotations
+      service-id: invoice-service
+      path: /quotations/**
+      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: expenses
+      service-id: invoice-service
+      path: /expenses/**
+      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: ai-generate-invoice
+      service-id: invoice-service
+      path: /ai/generate-invoice
+      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
