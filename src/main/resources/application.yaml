@@ -39,8 +39,8 @@ gateway:
         limit: ${GATEWAY_SIGNUP_RATE_LIMIT:5}
         window: ${GATEWAY_SIGNUP_RATE_WINDOW:15m}
       - path: /admin/auth/login
-        limit: ${GATEWAY_ADMIN_LOGIN_RATE_LIMIT:3}
-        window: ${GATEWAY_ADMIN_LOGIN_RATE_WINDOW:30m}
+        limit: ${GATEWAY_ADMIN_LOGIN_RATE_LIMIT:5}
+        window: ${GATEWAY_ADMIN_LOGIN_RATE_WINDOW:15m}
       - path: /auth/forgot-password
         limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
         window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
@@ -123,12 +123,6 @@ gateway:
       path: /admin/auth/login
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       auth-required: false
-    - id: admin-auth-verify-2fa
-      service-id: auth-service
-      path: /admin/auth/verify-2fa
-      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
-      token-type: login_2fa
-      auth-required: true
     - id: admin-service
       service-id: admin-service
       path: /admin/**
