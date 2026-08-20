@@ -20,27 +20,27 @@ gateway:
     jwks-ttl: ${GATEWAY_JWKS_TTL:1h}
     stale-key-grace: ${GATEWAY_JWKS_STALE_GRACE:4h}
     clock-skew: ${GATEWAY_JWT_CLOCK_SKEW:30s}
-    token-encryption-enabled: ${AUTH_TOKEN_ENCRYPTION_ENABLED:true}
+    token-encryption-enabled: ${AUTH_TOKEN_ENCRYPTION_ENABLED:false}
     jwe-secret: ${AUTH_JWE_SECRET:}
   rate-limit:
-    global-limit: ${GATEWAY_GLOBAL_RATE_LIMIT:100}
+    global-limit: ${GATEWAY_GLOBAL_RATE_LIMIT:1000}
     global-window: ${GATEWAY_GLOBAL_RATE_WINDOW:1m}
     overrides:
       - path: /auth/signup
-        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:5}
-        window: ${GATEWAY_SIGNUP_RATE_WINDOW:15m}
+        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:50}
+        window: ${GATEWAY_SIGNUP_RATE_WINDOW:1m}
       - path: /auth/login
-        limit: ${GATEWAY_LOGIN_RATE_LIMIT:5}
-        window: ${GATEWAY_LOGIN_RATE_WINDOW:15m}
+        limit: ${GATEWAY_LOGIN_RATE_LIMIT:100}
+        window: ${GATEWAY_LOGIN_RATE_WINDOW:1m}
       - path: /user/auth/login
-        limit: ${GATEWAY_LOGIN_RATE_LIMIT:5}
-        window: ${GATEWAY_LOGIN_RATE_WINDOW:15m}
+        limit: ${GATEWAY_LOGIN_RATE_LIMIT:100}
+        window: ${GATEWAY_LOGIN_RATE_WINDOW:1m}
       - path: /user/auth/signup
-        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:5}
-        window: ${GATEWAY_SIGNUP_RATE_WINDOW:15m}
+        limit: ${GATEWAY_SIGNUP_RATE_LIMIT:50}
+        window: ${GATEWAY_SIGNUP_RATE_WINDOW:1m}
       - path: /admin/auth/login
-        limit: ${GATEWAY_ADMIN_LOGIN_RATE_LIMIT:5}
-        window: ${GATEWAY_ADMIN_LOGIN_RATE_WINDOW:15m}
+        limit: ${GATEWAY_ADMIN_LOGIN_RATE_LIMIT:1000}
+        window: ${GATEWAY_ADMIN_LOGIN_RATE_WINDOW:1m}
       - path: /auth/forgot-password
         limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
         window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
