@@ -27,6 +27,20 @@ class RouteLocatorTests {
 	}
 
 	@Test
+	void wildcardRouteMatchesCollectionRoot() {
+		GatewayProperties properties = new GatewayProperties();
+		GatewayProperties.Route invoices = route("invoices", "/invoices/**", "http://user", null);
+		properties.setRoutes(List.of(invoices));
+
+		RouteLocator locator = new RouteLocator(properties);
+		locator.validateAndSort();
+
+		assertThat(locator.find("/invoices")).containsSame(invoices);
+		assertThat(locator.find("/invoices/")).containsSame(invoices);
+		assertThat(locator.find("/invoices/42")).containsSame(invoices);
+	}
+
+	@Test
 	void rejectsDuplicateRouteConfigurationAtStartup() {
 		GatewayProperties properties = new GatewayProperties();
 		properties.setRoutes(List.of(

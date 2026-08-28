@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -120,8 +121,7 @@ public class GatewayProxyController {
 		if (isRetryable(exchange.getRequest().getMethod()) && route.getRetries() > 0) {
 			attempt = attempt.retryWhen(Retry.max(route.getRetries()).filter(this::shouldRetry));
 		}
-		return attempt.onErrorResume(ex -> errors.write(exchange, HttpStatus.SERVICE_UNAVAILABLE,
-				GatewayErrorCode.SERVICE_UNAVAILABLE, "Service temporarily unavailable"));
+		return attempt.onErrorResume(ex -> writeRoutingFailure(exchange, route, ex));
 	}
 
 	private Mono<Void> forward(ServerWebExchange exchange, GatewayProperties.Route route,
@@ -144,12 +144,23 @@ public class GatewayProxyController {
 			}
 		});
 		applySecurityHeaders(response.getHeaders());
-		if (downstream.statusCode().is5xxServerError()) {
-			return downstream.bodyToMono(Void.class)
-					.then(Mono.error(new GatewayException(HttpStatus.SERVICE_UNAVAILABLE,
-							GatewayErrorCode.SERVICE_UNAVAILABLE, "Service temporarily unavailable")));
-		}
 		return response.writeWith(downstream.bodyToFlux(DataBuffer.class));
+	}
+
+	private Mono<Void> writeRoutingFailure(ServerWebExchange exchange, GatewayProperties.Route route, Throwable ex) {
+		if (ex instanceof GatewayException gatewayException) {
+			return errors.write(exchange, gatewayException.getStatus(), gatewayException.getCode(), gatewayException.getMessage());
+		}
+		if (ex instanceof TimeoutException) {
+			return errors.write(exchange, HttpStatus.GATEWAY_TIMEOUT, "DOWNSTREAM_TIMEOUT",
+					route.getServiceId() + " did not respond before the gateway timeout");
+		}
+		if (ex instanceof WebClientRequestException) {
+			return errors.write(exchange, HttpStatus.SERVICE_UNAVAILABLE, GatewayErrorCode.SERVICE_UNAVAILABLE,
+					route.getServiceId() + " is not reachable at " + route.getUri());
+		}
+		return errors.write(exchange, HttpStatus.SERVICE_UNAVAILABLE, GatewayErrorCode.SERVICE_UNAVAILABLE,
+				route.getServiceId() + " failed before returning a response");
 	}
 
 	private URI buildTargetUri(ServerWebExchange exchange, GatewayProperties.Route route) {
@@ -179,7 +190,7 @@ public class GatewayProxyController {
 	}
 
 	private boolean shouldRetry(Throwable ex) {
-		return ex instanceof TimeoutException || ex instanceof GatewayException;
+		return ex instanceof TimeoutException || ex instanceof WebClientRequestException;
 	}
 
 	private boolean isRetryable(HttpMethod method) {

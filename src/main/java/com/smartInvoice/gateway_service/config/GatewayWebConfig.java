@@ -2,12 +2,13 @@ package com.smartInvoice.gateway_service.config;
 
 import com.smartInvoice.gateway_service.web.ErrorResponseWriter;
 import com.smartInvoice.gateway_service.web.GatewayErrorCode;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
@@ -15,8 +16,8 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
-import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -36,17 +37,52 @@ public class GatewayWebConfig {
 	}
 
 	@Bean
+	@Order(Ordered.HIGHEST_PRECEDENCE)
+	WebFilter originDefenseFilter(GatewayProperties properties, ErrorResponseWriter errors) {
+		return (exchange, chain) -> {
+			String origin = exchange.getRequest().getHeaders().getOrigin();
+			if (origin != null && !isAllowedOrigin(origin, properties)) {
+				return errors.write(exchange, HttpStatus.FORBIDDEN, GatewayErrorCode.CORS_ORIGIN_DENIED,
+						"Origin " + origin + " is not allowed by the gateway. Add it to gateway.allowed-origins.");
+			}
+			return chain.filter(exchange);
+		};
+	}
+
+	@Bean
 	CorsWebFilter corsWebFilter(GatewayProperties properties) {
 		CorsConfiguration cors = new CorsConfiguration();
-		cors.setAllowedOrigins(properties.getAllowedOrigins());
-		cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		cors.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, "X-Correlation-Id"));
+		cors.setAllowedOriginPatterns(allowedOriginPatterns(properties));
+		cors.setAllowedMethods(List.of(CorsConfiguration.ALL));
+		cors.setAllowedHeaders(List.of(CorsConfiguration.ALL));
 		cors.setExposedHeaders(List.of("X-Correlation-Id", "X-RateLimit-Limit", "X-RateLimit-Remaining", HttpHeaders.RETRY_AFTER));
 		cors.setAllowCredentials(true);
 		cors.setMaxAge(Duration.ofHours(1));
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", cors);
 		return new CorsWebFilter(source);
+	}
+
+	private List<String> allowedOriginPatterns(GatewayProperties properties) {
+		List<String> patterns = new java.util.ArrayList<>(properties.getAllowedOrigins());
+		patterns.add("http://localhost:*");
+		patterns.add("http://127.0.0.1:*");
+		return patterns;
+	}
+
+	private boolean isAllowedOrigin(String origin, GatewayProperties properties) {
+		if (properties.getAllowedOrigins().contains(origin)) {
+			return true;
+		}
+		try {
+			URI uri = URI.create(origin);
+			String scheme = uri.getScheme();
+			String host = uri.getHost();
+			return "http".equalsIgnoreCase(scheme)
+					&& ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host));
+		} catch (IllegalArgumentException ex) {
+			return false;
+		}
 	}
 
 	@Bean
@@ -69,21 +105,6 @@ public class GatewayWebConfig {
 						exchange.getRequest().getMethod(), exchange.getRequest().getURI().getRawPath(),
 						status == null ? "UNKNOWN" : status.value(), latencyMs, finalCorrelationId);
 			});
-		};
-	}
-
-	@Bean
-	WebFilter originDefenseFilter(GatewayProperties properties, ErrorResponseWriter errors) {
-		return (exchange, chain) -> {
-			String origin = exchange.getRequest().getHeaders().getOrigin();
-			if (origin != null && !properties.getAllowedOrigins().contains(origin)) {
-				return errors.write(exchange, HttpStatus.FORBIDDEN, GatewayErrorCode.CORS_ORIGIN_DENIED,
-						"Origin is not allowed");
-			}
-			if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
-				return Mono.defer(() -> chain.filter(exchange));
-			}
-			return chain.filter(exchange);
 		};
 	}
 

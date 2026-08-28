@@ -14,6 +14,8 @@ server:
 gateway:
   allowed-origins:
     - ${FRONTEND_ORIGIN:http://localhost:3000}
+    - ${FRONTEND_ORIGIN_VITE:http://localhost:5173}
+    - ${FRONTEND_ORIGIN_ALT:http://localhost:3001}
   jwt:
     jwks-url: ${GATEWAY_JWKS_URL:http://localhost:9090/auth/.well-known/jwks.json}
     issuer: ${AUTH_ISSUER:smart-invoice-auth}
@@ -44,6 +46,9 @@ gateway:
       - path: /auth/forgot-password
         limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
         window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
+      - path: /auth/reset-password
+        limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
+        window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
       - path: /user/auth/forgot-password
         limit: ${GATEWAY_PASSWORD_RESET_RATE_LIMIT:3}
         window: ${GATEWAY_PASSWORD_RESET_RATE_WINDOW:1h}
@@ -72,6 +77,18 @@ gateway:
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       rewrite-to: /user/auth/verify-email
       auth-required: false
+    - id: auth-resend-verification
+      service-id: auth-service
+      path: /auth/resend-verification
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      rewrite-to: /user/auth/resend-verification
+      auth-required: false
+    - id: auth-verify-2fa
+      service-id: auth-service
+      path: /auth/verify-2fa
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      rewrite-to: /user/auth/verify-2fa
+      auth-required: false
     - id: auth-refresh
       service-id: auth-service
       path: /auth/refresh
@@ -83,16 +100,45 @@ gateway:
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       auth-required: true
       roles: [USER, ADMIN]
+    - id: auth-logout-all
+      service-id: auth-service
+      path: /auth/logout-all
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: true
+      roles: [USER, ADMIN]
     - id: auth-forgot-password
       service-id: auth-service
       path: /auth/forgot-password
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       auth-required: false
+    - id: auth-reset-password
+      service-id: auth-service
+      path: /auth/reset-password
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
+    - id: auth-change-password
+      service-id: auth-service
+      path: /auth/change-password
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: true
+      roles: [USER, ADMIN]
+    - id: profile
+      service-id: auth-service
+      path: /profile/**
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: true
+      roles: [USER, ADMIN]
     - id: auth-jwks
       service-id: auth-service
       path: /auth/.well-known/jwks.json
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       auth-required: false
+    - id: auth-internal-admin
+      service-id: auth-service
+      path: /internal/admin/**
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: true
+      roles: [ADMIN]
     - id: user-auth-signup
       service-id: auth-service
       path: /user/auth/signup
@@ -130,26 +176,49 @@ gateway:
       auth-required: true
       roles: [ADMIN]
     - id: invoices
-      service-id: invoice-service
+      service-id: user-service
       path: /invoices/**
-      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
       auth-required: true
       roles: [USER]
     - id: quotations
-      service-id: invoice-service
+      service-id: user-service
       path: /quotations/**
-      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
       auth-required: true
       roles: [USER]
     - id: expenses
-      service-id: invoice-service
+      service-id: user-service
       path: /expenses/**
-      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
       auth-required: true
       roles: [USER]
+    - id: finance
+      service-id: user-service
+      path: /finance/**
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: subscription
+      service-id: user-service
+      path: /subscription/**
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: settings
+      service-id: user-service
+      path: /settings
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: payment-webhook
+      service-id: user-service
+      path: /webhooks/payment-gateway
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: false
     - id: ai-generate-invoice
-      service-id: invoice-service
+      service-id: user-service
       path: /ai/generate-invoice
-      uri: ${INVOICE_SERVICE_URL:http://localhost:9092}
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
       auth-required: true
       roles: [USER]

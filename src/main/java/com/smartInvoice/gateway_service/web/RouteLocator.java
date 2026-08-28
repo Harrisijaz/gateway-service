@@ -53,7 +53,7 @@ public class RouteLocator {
 	private boolean matches(String configuredPath, String requestPath) {
 		String prefix = normalized(configuredPath);
 		if (configuredPath.endsWith("/**")) {
-			return requestPath.equals(prefix) || requestPath.startsWith(prefix + "/");
+			return requestPath.equals(prefix) || requestPath.equals(prefix + "/") || requestPath.startsWith(prefix + "/");
 		}
 		return requestPath.equals(prefix);
 	}

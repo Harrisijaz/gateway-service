@@ -1,6 +1,8 @@
 package com.smartInvoice.gateway_service.ratelimit;
 
 import com.smartInvoice.gateway_service.config.GatewayProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ServerWebExchange;
@@ -10,13 +12,19 @@ import reactor.core.scheduler.Schedulers;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class RateLimitService {
+	private static final Logger log = LoggerFactory.getLogger(RateLimitService.class);
+
 	private final GatewayProperties properties;
 	private final StringRedisTemplate redis;
+	private final Map<String, LocalWindow> localWindows = new ConcurrentHashMap<>();
 
 	public RateLimitService(GatewayProperties properties, StringRedisTemplate redis) {
 		this.properties = properties;
@@ -29,7 +37,11 @@ public class RateLimitService {
 		LimitRule rule = ruleFor(path);
 		String key = "gateway:ratelimit:" + rule.name() + ":" + ip;
 		return Mono.fromCallable(() -> evaluate(key, rule.limit(), rule.window()))
-				.subscribeOn(Schedulers.boundedElastic());
+				.subscribeOn(Schedulers.boundedElastic())
+				.onErrorResume(ex -> {
+					log.warn("Redis rate limiter unavailable for {}; using local fallback: {}", key, ex.getMessage());
+					return Mono.just(evaluateLocal(key, rule.limit(), rule.window()));
+				});
 	}
 
 	private RateLimitDecision evaluate(String key, int limit, Duration window) {
@@ -49,6 +61,23 @@ public class RateLimitService {
 				.map(tuple -> tuple.getScore() == null ? now : tuple.getScore().longValue())
 				.orElse(now);
 		long retryAfter = Math.max(1, ((oldest + window.toMillis()) - now + 999) / 1000);
+		return new RateLimitDecision(false, limit, 0, retryAfter);
+	}
+
+	private RateLimitDecision evaluateLocal(String key, int limit, Duration window) {
+		long now = Instant.now().toEpochMilli();
+		long windowMillis = window.toMillis();
+		LocalWindow current = localWindows.compute(key, (ignored, existing) -> {
+			if (existing == null || now >= existing.resetAtMillis()) {
+				return new LocalWindow(now + windowMillis);
+			}
+			return existing;
+		});
+		long used = current.count().incrementAndGet();
+		if (used <= limit) {
+			return new RateLimitDecision(true, limit, limit - used, 0);
+		}
+		long retryAfter = Math.max(1, (current.resetAtMillis() - now + 999) / 1000);
 		return new RateLimitDecision(false, limit, 0, retryAfter);
 	}
 
@@ -72,5 +101,11 @@ public class RateLimitService {
 	}
 
 	private record LimitRule(String name, int limit, Duration window) {
+	}
+
+	private record LocalWindow(long resetAtMillis, AtomicLong count) {
+		LocalWindow(long resetAtMillis) {
+			this(resetAtMillis, new AtomicLong());
+		}
 	}
 }
