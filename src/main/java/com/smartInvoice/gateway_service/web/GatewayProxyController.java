@@ -71,6 +71,21 @@ public class GatewayProxyController {
 		return health(exchange);
 	}
 
+	@RequestMapping("/")
+	public Mono<Void> checkoutSuccessRedirect(ServerWebExchange exchange) {
+		String rawQuery = exchange.getRequest().getURI().getRawQuery();
+		if (rawQuery == null || !rawQuery.contains("_ptxn=")) {
+			return errors.write(exchange, HttpStatus.NOT_FOUND, GatewayErrorCode.NOT_FOUND, "Route not found");
+		}
+		String redirectUrl = properties.getCheckoutSuccessRedirectUrl();
+		String separator = redirectUrl.contains("?") ? "&" : "?";
+		ServerHttpResponse response = exchange.getResponse();
+		response.setStatusCode(HttpStatus.FOUND);
+		response.getHeaders().setLocation(URI.create(redirectUrl + separator + rawQuery));
+		applySecurityHeaders(response.getHeaders());
+		return response.setComplete();
+	}
+
 	@RequestMapping("/**")
 	public Mono<Void> proxy(ServerWebExchange exchange) {
 		String path = exchange.getRequest().getURI().getRawPath();

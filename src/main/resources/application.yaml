@@ -12,6 +12,7 @@ server:
   max-http-request-header-size: 16KB
 
 gateway:
+  checkout-success-redirect-url: ${CHECKOUT_SUCCESS_REDIRECT_URL:http://localhost:3000/billing/success}
   allowed-origins:
     - ${FRONTEND_ORIGIN:http://localhost:3000}
     - ${FRONTEND_ORIGIN_VITE:http://localhost:5173}

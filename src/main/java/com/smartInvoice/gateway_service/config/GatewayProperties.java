@@ -15,6 +15,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "gateway")
 public class GatewayProperties {
 	private List<String> allowedOrigins = new ArrayList<>();
+	private String checkoutSuccessRedirectUrl = "http://localhost:3000/billing/success";
 	@Valid
 	private Jwt jwt = new Jwt();
 	private RateLimit rateLimit = new RateLimit();
@@ -25,6 +26,8 @@ public class GatewayProperties {
 
 	public List<String> getAllowedOrigins() { return allowedOrigins; }
 	public void setAllowedOrigins(List<String> allowedOrigins) { this.allowedOrigins = allowedOrigins; }
+	public String getCheckoutSuccessRedirectUrl() { return checkoutSuccessRedirectUrl; }
+	public void setCheckoutSuccessRedirectUrl(String checkoutSuccessRedirectUrl) { this.checkoutSuccessRedirectUrl = checkoutSuccessRedirectUrl; }
 	public Jwt getJwt() { return jwt; }
 	public void setJwt(Jwt jwt) { this.jwt = jwt; }
 	public RateLimit getRateLimit() { return rateLimit; }
