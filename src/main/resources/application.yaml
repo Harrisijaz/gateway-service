@@ -117,6 +117,11 @@ gateway:
       path: /auth/reset-password
       uri: ${AUTH_SERVICE_URL:http://localhost:9090}
       auth-required: false
+    - id: contact-us
+      service-id: auth-service
+      path: /contact-us
+      uri: ${AUTH_SERVICE_URL:http://localhost:9090}
+      auth-required: false
     - id: auth-change-password
       service-id: auth-service
       path: /auth/change-password
