@@ -110,7 +110,7 @@ public class GatewayProxyController {
 
 	private Mono<AuthenticatedPrincipal> authorize(ServerWebExchange exchange, GatewayProperties.Route route) {
 		if (!route.isAuthRequired()) {
-			return Mono.just(new AuthenticatedPrincipal("", "", "", "", ""));
+			return Mono.just(new AuthenticatedPrincipal("", "", "", "", "", "", ""));
 		}
 		return jwtVerification.verify(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION), route.getTokenType())
 				.flatMap(principal -> blacklist.requireNotBlacklisted(principal.userId()).thenReturn(principal))
@@ -190,7 +190,9 @@ public class GatewayProxyController {
 			if (!isInternalOrHopByHop(name)
 					&& !"x-user-id".equalsIgnoreCase(name)
 					&& !"x-user-role".equalsIgnoreCase(name)
-					&& !"x-user-email".equalsIgnoreCase(name)) {
+					&& !"x-user-email".equalsIgnoreCase(name)
+					&& !"x-workspace-id".equalsIgnoreCase(name)
+					&& !"x-workspace-role".equalsIgnoreCase(name)) {
 				target.put(name, values);
 			}
 		});
@@ -200,6 +202,12 @@ public class GatewayProxyController {
 			target.set("X-User-Role", principal.role());
 			if (principal.email() != null && !principal.email().isBlank()) {
 				target.set("X-User-Email", principal.email());
+			}
+			if (principal.workspaceId() != null && !principal.workspaceId().isBlank()) {
+				target.set("X-Workspace-Id", principal.workspaceId());
+			}
+			if (principal.workspaceRole() != null && !principal.workspaceRole().isBlank()) {
+				target.set("X-Workspace-Role", principal.workspaceRole());
 			}
 		}
 	}

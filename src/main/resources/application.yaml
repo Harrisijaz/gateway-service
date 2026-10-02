@@ -181,6 +181,17 @@ gateway:
       uri: ${ADMIN_SERVICE_URL:http://localhost:9091}
       auth-required: true
       roles: [ADMIN]
+    - id: blog-public
+      service-id: admin-service
+      path: /api/blog/**
+      uri: ${ADMIN_SERVICE_URL:http://localhost:9091}
+      auth-required: false
+    - id: blog-admin
+      service-id: admin-service
+      path: /api/admin/blog/**
+      uri: ${ADMIN_SERVICE_URL:http://localhost:9091}
+      auth-required: true
+      roles: [ADMIN]
     - id: invoices
       service-id: user-service
       path: /invoices/**
@@ -214,6 +225,34 @@ gateway:
     - id: settings
       service-id: user-service
       path: /settings
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: team-invite-accept
+      service-id: user-service
+      path: /team/invites/*/accept
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: false
+    - id: team-invites-pending
+      service-id: user-service
+      path: /team/invites/pending
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: team-invites-accepted
+      service-id: user-service
+      path: /team/invites/accepted
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: true
+      roles: [USER]
+    - id: team-invite-preview
+      service-id: user-service
+      path: /team/invites/*
+      uri: ${USER_SERVICE_URL:http://localhost:9092}
+      auth-required: false
+    - id: team
+      service-id: user-service
+      path: /team/**
       uri: ${USER_SERVICE_URL:http://localhost:9092}
       auth-required: true
       roles: [USER]

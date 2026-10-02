@@ -117,6 +117,7 @@ public class JwtVerificationService {
 				throw invalid();
 			}
 			return new AuthenticatedPrincipal(claims.getSubject(), claims.getStringClaim("email"), role,
+					claims.getStringClaim("workspaceId"), claims.getStringClaim("workspaceRole"),
 					claims.getJWTID(), claims.getStringClaim("token_type"));
 		} catch (GatewayException ex) {
 			throw ex;

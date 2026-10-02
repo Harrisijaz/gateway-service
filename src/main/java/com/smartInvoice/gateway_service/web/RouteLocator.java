@@ -55,7 +55,24 @@ public class RouteLocator {
 		if (configuredPath.endsWith("/**")) {
 			return requestPath.equals(prefix) || requestPath.equals(prefix + "/") || requestPath.startsWith(prefix + "/");
 		}
+		if (configuredPath.contains("*")) {
+			return wildcardMatch(prefix, requestPath);
+		}
 		return requestPath.equals(prefix);
+	}
+
+	private boolean wildcardMatch(String configuredPath, String requestPath) {
+		String[] configured = configuredPath.split("/");
+		String[] requested = requestPath.split("/");
+		if (configured.length != requested.length) {
+			return false;
+		}
+		for (int i = 0; i < configured.length; i++) {
+			if (!"*".equals(configured[i]) && !configured[i].equals(requested[i])) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static String normalized(String path) {
@@ -68,6 +85,9 @@ public class RouteLocator {
 		}
 		if (path.contains("**") && !path.endsWith("/**")) {
 			throw new IllegalStateException("Gateway route " + routeId + " may only use /** at the end");
+		}
+		if (path.contains("***")) {
+			throw new IllegalStateException("Gateway route " + routeId + " contains an invalid wildcard");
 		}
 	}
 }
